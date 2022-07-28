@@ -1,0 +1,263 @@
+<script>
+    window.onload = function () {
+        if (window.localStorage.getItem('auth') == null) {
+            window.location.href = "http://localhost:8000";
+        }
+    }
+</script>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.0/css/line.css">
+    <link rel="stylesheet" href="../css/index.css">
+
+    <title>Profile</title>
+    <link href='../lib/fullcalendar/main.css' rel='stylesheet' />
+    <script src='../lib/fullcalendar/main.js'></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2"
+        crossorigin="anonymous"></script>
+    <script src="../lib/jquery.min.js"></script>
+    <script>
+        $(document).ready(() => {
+            let result;
+            let cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                result = cookies[i].split('=');
+            }
+            const token = result[1];
+
+            $.ajax({
+                type: "GET",
+                url: "http://localhost:8000/shedules?token=" + token,
+                beforeSend: () => {
+                    $(".loader-container").removeClass('d-none');
+                },
+                success: (response) => {
+                    $(".loader-container").addClass('d-none');
+                    if (response.data.length > 0) {
+                        $("#profile_page").addClass('d-none');
+                        $("#album").removeClass('d-none');
+
+                        response.data.forEach((data) => {
+                            console.log(data)
+                            $("#album-col").append(`
+                <div class="col">
+                    <div class="card shadow-sm">
+                        <div class="py-5 bg-dark">
+                            <h2 class='display-6 text-center text-capitalize text-light'>${data.event}</h2>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">This is a wider card with supporting text below as a natural lead-in to
+                                additional content. This content is a little bit longer.</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="">
+                                    <button type="button" class="btn btn-primary show-event" data-items="${data.schedules}" data-event-name="${data.event}" data-event-start="${data.start_time}" data-event-end="${data.end_time}"><i class="uil uil-eye"></i> View an Event</button>
+                                </div>
+                                <button type="button" class="btn btn-danger delete-event d-flex justify-content-center align-items-center" data-auth="${data.email}" data-event="${data.event}"><i class="uil uil-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`)
+                        });
+
+                        $(".show-event").click((e) => {
+                            let schedules_date = $(e.target).attr('data-items').split(',');
+                            let event_name = $(e.target).attr('data-event-name')
+                            let start_time = $(e.target).attr('data-start-time')
+                            let end_time = $(e.target).attr('data-end-time');
+                            let events = schedules_date.map((data) => {
+                                return {
+                                    title: event_name,
+                                    start: data,
+                                    // color: '#060c21',
+                                    constraint: 'availableForMeeting'
+                                }
+                            });
+
+
+                            console.log(events)
+
+                            var calendarEl = document.getElementById('calendar');
+
+                            var calendar = new FullCalendar.Calendar(calendarEl, {
+                                headerToolbar: {
+                                    left: 'prev,next today',
+                                    center: 'title',
+                                    right: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
+                                },
+                                initialDate: '2022-06-01',
+                                navLinks: true, // can click day/week names to navigate views
+                                businessHours: true, // display business hours
+                                selectable: true,
+                                editable: true,
+                                dayMaxEvents: true,
+                                events: events
+                            });
+
+                            calendar.render();
+                        });
+
+                        // delete an event
+                        $(".delete-event").click((e) => {
+                            let confirm = window.confirm("Are you sure ?");
+                            if (confirm) {
+                                $.ajax({
+                                    type: "DELETE",
+                                    url: "http://localhost:8000/deleteEvent",
+                                    data: {
+                                        email: e.target.getAttribute('data-auth'),
+                                        event: e.target.getAttribute('data-event')
+                                    },
+                                    beforeSend: () => {
+                                        $(e.target).html('<div class="spinner-border spinner-border-sm"></div>');
+                                    },
+                                    success: (response) => {
+                                        if (response.status) {
+                                            window.location.reload();
+                                        };
+                                    }
+                                });
+                            }
+                        });
+                    }
+                    else {
+                        $("#profile_page").removeClass('d-none');
+                        $("#album").addClass('d-none');
+                    }
+                }
+            });
+        }); 
+    </script>
+    <script src="js/profile.js"></script>
+
+</head>
+
+<body>
+    <nav class="navbar" style="background: #F7FAFF">
+        <div class="container-fluid">
+            <h2 class="navbar-brand brand p-0 m-0">Getomnify</h2>
+            <div class="d-flex">
+                <button class="btn btn-primary text-capitalize me-3 px-3 rounded-1" type="button" data-bs-toggle="modal"
+                    data-bs-target="#schedule_modal">Create Event</button>
+                <div class="user-pic-box text-capitalize d-flex justify-content-center align-items-center"
+                    data-bs-toggle="modal" data-bs-target="#profile_modal"></div>
+            </div>
+        </div>
+    </nav>
+    <div class="album py-5 bg-light d-none" id="album">
+        <div class="container">
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-3" id="album-col">
+
+            </div>
+        </div>
+    </div>
+    <div class="container-fluid d-none page" id="profile_page" style="background: yellow">
+        <div class="row h-100">
+            <div class="col-md-6 d-flex justify-content-center align-items-center">
+                <div>
+                    <h1 class="display-3 text-capitalize p-0 m-0">Create Your First Event</h1>
+                    <br />
+                    <p class="text-uppercase p-0 m-0">Schedule your event now !</p>
+                    <br />
+                    <button class="btn btn-primary text-capitalize me-3 px-3 rounded-1" type="button"
+                        data-bs-toggle="modal" data-bs-target="#schedule_modal">Create An
+                        Event <i class="uil uil-navigator"></i></button>
+                </div>
+            </div>
+            <div class="col-md-6 d-flex justify-content-center align-items-center">
+                <img src="../images/inner.jpg" width="90%" />
+            </div>
+        </div>
+    </div>
+
+    <!-- Signup Modal -->
+    <div class="modal fade" id="schedule_modal">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-body p-5">
+                    <h5 class="text-center">Create an Event</h5>
+                    <br />
+                    <div class="row">
+                        <div class="col-md-6 d-flex justify-content-center align-items-center">
+                            <img src="../images/calender.svg" width="100%" alt="signup">
+                        </div>
+                        <div class="col-md-6">
+                            <form class="event_form" autocomplete="off" spellcheck="false">
+                                <div class="form-group mb-4">
+                                    <label>Name</label>
+                                    <input type="text" class="form-control event-name" name="event" required />
+                                    <small class="event-name-error text-danger"></small>
+                                </div>
+                                <div class="form-group mb-4">
+                                    <label>Description</label>
+                                    <textarea name="description" cols="10" rows="3" class="form-control"></textarea>
+                                </div>
+                                <div class="form-group mb-4">
+                                    <label>Start Time</label>
+                                    <input type="time" class="form-control" name="start_time" required />
+                                </div>
+                                <div class="form-group mb-4">
+                                    <label>End Time</label>
+                                    <input type="time" class="form-control" name="end_time" required />
+                                </div>
+                                <select class="form-select mb-4" name="week_day">
+                                    <option value="1">Monday</option>
+                                    <option value="2">Tuesday</option>
+                                    <option value="3">Wednesday</option>
+                                    <option value="4">Thursday</option>
+                                    <option value="5">Friday</option>
+                                    <option value="6">Saturday</option>
+                                    <option value="7">Sunday</option>
+                                </select>
+                                <div class="form-group mb-4 d-flex justify-content-end">
+                                    <button class="btn btn-primary px-3 event-btn">Create Now</button>
+                                    <button class="btn btn-primary event-process-btn d-none" type="button" disabled>
+                                        <span class="spinner-border spinner-border-sm" role="status"
+                                            aria-hidden="true"></span>
+                                        Processing...
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User profile Modal -->
+    <div class="modal fade" id="profile_modal">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body p-5 d-flex flex-column align-items-center">
+                    <div class="profile-pic-box text-capitalize d-flex justify-content-center align-items-center"></div>
+                    <br />
+                    <h4 class="profile-fullname text-capitalize">Create an Event</h4>
+                    <p class="profile-email"></p>
+                    <button class="btn btn-primary px-3 logout-btn"><i class="uil uil-sign-out-alt"></i> Logout</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id='calendar'></div>
+    </div>
+
+    <div class="loader-container d-none">
+        <div class="loader-bg d-flex justify-content-center align-items-center">
+            <div class="spinner-border loader" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
